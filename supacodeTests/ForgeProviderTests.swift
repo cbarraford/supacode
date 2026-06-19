@@ -23,8 +23,22 @@ struct ForgeProviderTests {
     #expect(info?.repo == "app-shell")
   }
 
+  @Test func parseForgeRemoteInfoRecognizesSelfHostedGitLabRemote() {
+    let info = GitClient.parseForgeRemoteInfo("git@gitlab.example.com:platform/mobile/ios/app-shell.git")
+
+    #expect(info?.providerID == .gitLab)
+    #expect(info?.host == "gitlab.example.com")
+    #expect(info?.projectPath == "platform/mobile/ios/app-shell")
+  }
+
   @Test func parseForgeRemoteInfoReturnsNilForUnknownHost() {
     let info = GitClient.parseForgeRemoteInfo("git@example.com:platform/mobile/ios/app-shell.git")
+
+    #expect(info == nil)
+  }
+
+  @Test func parseForgeRemoteInfoDoesNotMatchProviderNameInsideHostLabel() {
+    let info = GitClient.parseForgeRemoteInfo("git@notgithub.example.com:supabitapp/supacode.git")
 
     #expect(info == nil)
   }

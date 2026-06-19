@@ -99,6 +99,45 @@ struct SettingsFilePersistenceTests {
       ])
   }
 
+  @Test func malformedCustomCICommandEntriesAreDroppedLossily() throws {
+    let validGlobal = ForgeCustomCICommand(providerID: "gitlab", command: "ci-status --branch {{BRANCH}}")
+    let validRepo = ForgeCustomCICommand(providerID: "github", command: "ci-status --pr {{PULL_REQUEST_NUMBER}}")
+    let encoded = try JSONEncoder().encode(SettingsFile.default)
+    var json = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    var global = try #require(json["global"] as? [String: Any])
+    global["customCICommands"] = [
+      [
+        "providerID": validGlobal.providerID,
+        "command": validGlobal.command,
+      ],
+      [
+        "providerID": "gitlab"
+      ],
+    ]
+    json["global"] = global
+    var repo = try #require(
+      JSONSerialization.jsonObject(with: try JSONEncoder().encode(RepositorySettings.default)) as? [String: Any]
+    )
+    repo["customCICommands"] = [
+      [
+        "providerID": validRepo.providerID,
+        "command": validRepo.command,
+      ],
+      [
+        "command": "missing-provider"
+      ],
+    ]
+    json["repositories"] = [
+      "/tmp/repo": repo
+    ]
+    let data = try JSONSerialization.data(withJSONObject: json)
+
+    let decoded = try JSONDecoder().decode(SettingsFile.self, from: data)
+
+    #expect(decoded.global.customCICommands == [validGlobal])
+    #expect(decoded.repositories["/tmp/repo"]?.customCICommands == [validRepo])
+  }
+
   @Test(.dependencies) func invalidJSONResetsToDefaults() throws {
     let storage = MutableTestStorage(initialData: Data("{".utf8))
 

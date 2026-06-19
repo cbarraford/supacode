@@ -511,6 +511,55 @@ struct RepositoriesFeature {
     return .ssh(host: host)
   }
 
+  private static func unsupportedProviderActionMessage(
+    action: PullRequestAction,
+    pullRequest: ForgePullRequest,
+  ) -> String? {
+    guard !pullRequest.providerCapabilities.contains(requiredForgeCapability(for: action)) else {
+      return nil
+    }
+    return "\(pullRequest.providerDisplayName) does not support "
+      + "\(providerActionDescription(for: action, pullRequestName: pullRequest.pullRequestName)) from Supacode."
+  }
+
+  private static func requiredForgeCapability(for action: PullRequestAction) -> ForgeCapability {
+    switch action {
+    case .openOnGithub:
+      return .openPullRequest
+    case .markReadyForReview:
+      return .markReady
+    case .merge:
+      return .merge
+    case .close:
+      return .close
+    case .copyFailingJobURL, .copyCiFailureLogs, .openFailingCheckDetails:
+      return .ciLogs
+    case .rerunFailedJobs:
+      return .rerunFailedJobs
+    }
+  }
+
+  private static func providerActionDescription(for action: PullRequestAction, pullRequestName: String) -> String {
+    switch action {
+    case .openOnGithub:
+      return "opening \(pullRequestName)s"
+    case .markReadyForReview:
+      return "marking \(pullRequestName)s ready"
+    case .merge:
+      return "merging \(pullRequestName)s"
+    case .close:
+      return "closing \(pullRequestName)s"
+    case .copyFailingJobURL:
+      return "copying failing job URLs"
+    case .copyCiFailureLogs:
+      return "copying CI failure logs"
+    case .rerunFailedJobs:
+      return "re-running failed jobs"
+    case .openFailingCheckDetails:
+      return "opening failing check details"
+    }
+  }
+
   /// Present the connection form seeded from the existing config for `repositoryID`.
   /// Looked up by derived repo id so a failed / disconnected remote (which has
   /// no loaded `Repository`) is still editable.
@@ -2193,6 +2242,10 @@ struct RepositoriesFeature {
               message: "Supacode could not find a pull request for this worktree.",
             )
           )
+        }
+        if let message = Self.unsupportedProviderActionMessage(action: action, pullRequest: pullRequest) {
+          state.alert = messageAlert(title: "Unsupported provider action", message: message)
+          return .none
         }
         let repoRoot = worktree.repositoryRootURL
         let repoHost = worktree.host

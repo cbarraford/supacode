@@ -115,7 +115,7 @@ public nonisolated struct RepositorySettings: Codable, Equatable, Sendable {
       try container.decodeIfPresent(PullRequestMergeStrategy.self, forKey: .pullRequestMergeStrategy)
       ?? Self.default.pullRequestMergeStrategy
     customCICommands =
-      try container.decodeIfPresent([ForgeCustomCICommand].self, forKey: .customCICommands)
+      container.decodeLossyArrayIfPresent(forKey: .customCICommands)
       ?? Self.default.customCICommands
   }
 

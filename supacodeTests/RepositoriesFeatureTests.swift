@@ -5267,6 +5267,45 @@ struct RepositoriesFeatureTests {
     await store.finish()
   }
 
+  @Test func pullRequestActionRejectsUnsupportedProviderCapability() async {
+    let repoRoot = "/tmp/gitlab-repo"
+    let featureWorktree = makeWorktree(
+      id: "\(repoRoot)/feature-provider",
+      name: "feature/provider",
+      repoRoot: repoRoot,
+    )
+    let repository = makeRepository(id: repoRoot, worktrees: [featureWorktree])
+    var state = makeState(repositories: [repository])
+    state.githubIntegrationAvailability = .available
+    state.reconcileSidebarForTesting()
+    state.sidebarItems[id: featureWorktree.id]?.pullRequest = makePullRequest(
+      providerID: .gitLab,
+      providerCapabilities: ForgeProviderDescriptor.gitLab.capabilities,
+      state: "OPEN",
+      headRefName: featureWorktree.name,
+      number: 42,
+    )
+    let store = TestStore(initialState: state) {
+      RepositoriesFeature()
+    } withDependencies: {
+      $0.githubIntegration.isAvailable = {
+        Issue.record("Unsupported GitLab merge should not check GitHub availability")
+        return true
+      }
+      $0.githubCLI.mergePullRequest = { _, _, _, _ in
+        Issue.record("Unsupported GitLab merge should not call GitHub merge")
+      }
+    }
+
+    await store.send(.pullRequestAction(featureWorktree.id, .merge)) {
+      $0.alert = RepositoriesFeature().messageAlert(
+        title: "Unsupported provider action",
+        message: "GitLab does not support merging merge requests from Supacode.",
+      )
+    }
+    await store.finish()
+  }
+
   @Test func unarchiveWorktreeNoopsWhenNotArchived() async {
     let worktree = makeWorktree(id: "/tmp/wt", name: "owl")
     let repository = makeRepository(id: "/tmp/repo", worktrees: [worktree])

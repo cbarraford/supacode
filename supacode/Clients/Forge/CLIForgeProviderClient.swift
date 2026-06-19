@@ -97,10 +97,22 @@ private actor CLIForgeExecutableResolver {
 
   private func resolveExecutableURL(executableName: String, shell: ShellClient) async throws -> URL {
     let whichURL = URL(fileURLWithPath: "/usr/bin/which")
-    let output = try await shell.run(whichURL, [executableName], nil).stdout
+    if let output = try? await shell.run(whichURL, [executableName], nil).stdout,
+      let executableURL = executableURL(fromWhichOutput: output)
+    {
+      return executableURL
+    }
+    let loginOutput = try await shell.runLogin(whichURL, [executableName], nil, log: false).stdout
+    guard let executableURL = executableURL(fromWhichOutput: loginOutput) else {
+      throw GithubCLIError.unavailable
+    }
+    return executableURL
+  }
+
+  private func executableURL(fromWhichOutput output: String) -> URL? {
     let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else {
-      throw GithubCLIError.unavailable
+      return nil
     }
     return URL(fileURLWithPath: trimmed)
   }
@@ -195,6 +207,7 @@ private struct GitLabMergeRequestResponse: Decodable {
   let targetBranch: String?
   let author: Author?
   let pipeline: Pipeline?
+  let headPipeline: Pipeline?
 
   private enum CodingKeys: String, CodingKey {
     case iid
@@ -207,6 +220,7 @@ private struct GitLabMergeRequestResponse: Decodable {
     case targetBranch = "target_branch"
     case author
     case pipeline
+    case headPipeline = "head_pipeline"
   }
 
   struct Author: Decodable {
@@ -243,7 +257,7 @@ private struct GitLabMergeRequestResponse: Decodable {
       baseRefName: targetBranch,
       commitsCount: nil,
       authorLogin: author?.username ?? author?.login,
-      statusCheckRollup: pipeline.map { pipeline in
+      statusCheckRollup: (headPipeline ?? pipeline).map { pipeline in
         ForgeStatusCheckRollup(checks: [
           ForgeStatusCheck(
             name: "Pipeline",
@@ -295,16 +309,20 @@ private enum CustomCICommandRunner {
 
   private static func render(_ template: String, context: ForgeCustomCIContext) -> String {
     let replacements: [String: String] = [
-      "REPO_ROOT": context.repoRoot.path(percentEncoded: false),
-      "BRANCH": context.branch,
-      "REMOTE_HOST": context.remote.host,
-      "PROJECT_PATH": context.remote.projectPath,
-      "PULL_REQUEST_NUMBER": "\(context.pullRequest.number)",
-      "PULL_REQUEST_URL": context.pullRequest.url,
+      "REPO_ROOT": shellQuoted(context.repoRoot.path(percentEncoded: false)),
+      "BRANCH": shellQuoted(context.branch),
+      "REMOTE_HOST": shellQuoted(context.remote.host),
+      "PROJECT_PATH": shellQuoted(context.remote.projectPath),
+      "PULL_REQUEST_NUMBER": shellQuoted("\(context.pullRequest.number)"),
+      "PULL_REQUEST_URL": shellQuoted(context.pullRequest.url),
     ]
     return replacements.reduce(template) { partial, entry in
       partial.replacing("{{\(entry.key)}}", with: entry.value)
     }
+  }
+
+  private static func shellQuoted(_ value: String) -> String {
+    "'\(value.replacing("'", with: "'\\''"))'"
   }
 }
 

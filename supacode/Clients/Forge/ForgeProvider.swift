@@ -47,7 +47,13 @@ nonisolated struct ForgeProviderDescriptor: Equatable, Sendable {
 
   func matches(host: String) -> Bool {
     let normalizedHost = host.lowercased()
-    return hostKeywords.contains { normalizedHost.contains($0) }
+    let hostLabels = Set(normalizedHost.split(separator: ".").map(String.init))
+    return hostKeywords.contains { keyword in
+      let normalizedKeyword = keyword.lowercased()
+      return normalizedHost == normalizedKeyword
+        || normalizedHost.hasSuffix(".\(normalizedKeyword)")
+        || hostLabels.contains(normalizedKeyword)
+    }
   }
 
   static let github = ForgeProviderDescriptor(

@@ -298,7 +298,7 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     // Lossy: a malformed entry is dropped, a missing key collapses to `[]`.
     remoteRepositories = container.decodeLossyArrayIfPresent(forKey: .remoteRepositories) ?? []
     customCICommands =
-      try container.decodeIfPresent([ForgeCustomCICommand].self, forKey: .customCICommands)
+      container.decodeLossyArrayIfPresent(forKey: .customCICommands)
       ?? Self.default.customCICommands
     richAgentNotificationsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .richAgentNotificationsEnabled)
