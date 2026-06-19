@@ -1,7 +1,6 @@
 import AppKit
 import ComposableArchitecture
 import Foundation
-import OrderedCollections
 import SwiftUI
 import Testing
 
@@ -10,48 +9,58 @@ import Testing
 @MainActor
 struct SidebarPathGroupHeaderInteractionTests {
   @Test func clickingDirectoryHeaderRowAwayFromChevronTogglesExpansion() {
-    let repoRoot = "/tmp/repo"
-    let featureA = makeWorktree(id: "/tmp/repo/feature-a", name: "feature/a", repoRoot: repoRoot)
-    let featureB = makeWorktree(id: "/tmp/repo/feature-b", name: "feature/b", repoRoot: repoRoot)
-    let repository = makeRepository(id: repoRoot, worktrees: [featureA, featureB])
-    var state = RepositoriesFeature.State(reconciledRepositories: [repository])
-    state.$sidebarNestWorktreesByBranch.withLock { $0 = true }
-    state.reconcileSidebarForTesting()
-
-    let store = Store(initialState: state) {
-      RepositoriesFeature()
+    let repositoryID: Repository.ID = "/tmp/repo"
+    let observedExpansion = LockIsolated<ObservedExpansion?>(nil)
+    let store = Store(initialState: RepositoriesFeature.State()) {
+      Reduce<RepositoriesFeature.State, RepositoriesFeature.Action> { _, action in
+        if case .branchNestExpansionChanged(
+          let repositoryID,
+          let bucketID,
+          let prefix,
+          let isExpanded,
+        ) = action {
+          observedExpansion.withValue {
+            $0 = ObservedExpansion(
+              repositoryID: repositoryID,
+              bucketID: bucketID,
+              prefix: prefix,
+              isExpanded: isExpanded,
+            )
+          }
+        }
+        return .none
+      }
     }
-    let groups = repositoryGroups(in: store.state, repositoryID: repository.id)
-    let view = VStack(spacing: 0) {
-      SidebarItemsView(
-        repository: repository,
-        groups: groups,
-        shortcutHintByID: [:],
-        selectedWorktreeIDs: [],
-        store: store,
-        terminalManager: WorktreeTerminalManager(runtime: GhosttyRuntime()),
-      )
-    }
-    .frame(width: 240, height: 96, alignment: .topLeading)
+    let view = SidebarPathGroupHeaderRow(
+      repositoryID: repositoryID,
+      bucketID: .unpinned,
+      prefix: "feature",
+      components: ["feature"],
+      depth: 0,
+      isCollapsed: false,
+      leafDescendantIDs: [],
+      store: store,
+    )
+    .frame(width: 240, height: 40, alignment: .topLeading)
 
-    clickHosted(view, at: CGPoint(x: 210, y: 82), size: CGSize(width: 240, height: 96))
+    clickHosted(view, at: CGPoint(x: 72, y: 34), size: CGSize(width: 240, height: 40))
 
     #expect(
-      store.state.sidebar.sections[repository.id]?.buckets[.unpinned]?.collapsedBranchPrefixes
-        == ["feature"]
+      observedExpansion.value
+        == ObservedExpansion(
+          repositoryID: repositoryID,
+          bucketID: .unpinned,
+          prefix: "feature",
+          isExpanded: false,
+        )
     )
   }
 
-  private func repositoryGroups(
-    in state: RepositoriesFeature.State,
-    repositoryID: Repository.ID,
-  ) -> [SidebarItemGroup] {
-    for section in state.sidebarStructure.sections {
-      if case .repository(let id, let groups) = section, id == repositoryID {
-        return groups
-      }
-    }
-    return []
+  private struct ObservedExpansion: Equatable {
+    var repositoryID: Repository.ID
+    var bucketID: SidebarBucket
+    var prefix: String
+    var isExpanded: Bool
   }
 
   private func clickHosted<V: View>(
@@ -68,6 +77,8 @@ struct SidebarPathGroupHeaderInteractionTests {
     )
     window.contentView = hostingView
     hostingView.frame = CGRect(origin: .zero, size: size)
+    window.makeKeyAndOrderFront(nil)
+    RunLoop.main.run(until: Date().addingTimeInterval(0.1))
     window.layoutIfNeeded()
     hostingView.layoutSubtreeIfNeeded()
 
@@ -96,31 +107,5 @@ struct SidebarPathGroupHeaderInteractionTests {
     if let event {
       window.sendEvent(event)
     }
-  }
-
-  private func makeWorktree(
-    id: String,
-    name: String,
-    repoRoot: String,
-  ) -> Worktree {
-    Worktree(
-      id: WorktreeID(id),
-      name: name,
-      detail: "detail",
-      workingDirectory: URL(fileURLWithPath: id),
-      repositoryRootURL: URL(fileURLWithPath: repoRoot),
-    )
-  }
-
-  private func makeRepository(
-    id: String,
-    worktrees: [Worktree],
-  ) -> Repository {
-    Repository(
-      id: RepositoryID(id),
-      rootURL: URL(fileURLWithPath: id),
-      name: "repo",
-      worktrees: IdentifiedArray(uniqueElements: worktrees),
-    )
   }
 }
