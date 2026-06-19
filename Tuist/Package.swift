@@ -2,13 +2,20 @@
 import PackageDescription
 
 #if TUIST
-import ProjectDescription
+  import ProjectDescription
 
-let packageSettings = PackageSettings(
-  productTypes: [
-    "Sparkle": .framework,
-  ]
-)
+  let packageSettings = PackageSettings(
+    productTypes: [
+      "Sparkle": .framework
+    ],
+    targetSettings: [
+      "ComposableArchitecture": .settings(
+        base: [
+          "SWIFT_VERSION": "5.0"
+        ]
+      )
+    ],
+  )
 #endif
 
 let package = Package(
@@ -31,5 +38,5 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/swift-perception", exact: "2.0.9"),
     .package(url: "https://github.com/pointfreeco/swift-sharing", exact: "2.7.4"),
     .package(url: "https://github.com/pointfreeco/xctest-dynamic-overlay", exact: "1.8.1"),
-  ]
+  ],
 )

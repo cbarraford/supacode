@@ -260,7 +260,7 @@ private struct SidebarBranchNestingRowView: View {
 /// per-row state mutation in the bucket (e.g. an agent tool storm on one
 /// leaf) doesn't invalidate this row; the per-leaf indicator aggregation is
 /// scoped to its own subview that observes only its descendants.
-private struct SidebarPathGroupHeaderRow: View {
+struct SidebarPathGroupHeaderRow: View {
   let repositoryID: Repository.ID
   let bucketID: SidebarBucket
   let prefix: String
@@ -301,6 +301,7 @@ private struct SidebarPathGroupHeaderRow: View {
           SidebarPathGroupAggregatedIndicators(parentStore: store, leafIDs: leafDescendantIDs)
         }
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(.interaction, .rect)
     }
     .buttonStyle(.plain)
