@@ -17,6 +17,7 @@ struct WorktreeMenuSnapshot: Equatable {
   var canNavigateForward: Bool = false
   var isInitialLoadComplete: Bool = false
   var selectedPullRequestURL: URL?
+  var selectedPullRequestName: String = "Pull Request"
   var notificationIndicatorCount: Int = 0
 }
 
@@ -25,8 +26,8 @@ extension AppFeature.State {
   /// post-reduce hook on the root reducer; Equatable diff suppresses no-op
   /// writes so SwiftUI only invalidates when something the menu reads changed.
   func computeWorktreeMenuSnapshot() -> WorktreeMenuSnapshot {
-    let pullRequestURL = repositories.selectedWorktreeSlice?.pullRequest
-      .flatMap { URL(string: $0.url) }
+    let pullRequest = repositories.selectedWorktreeSlice?.pullRequest
+    let pullRequestURL = pullRequest.flatMap { URL(string: $0.url) }
     return WorktreeMenuSnapshot(
       shortcutOverrides: settings.shortcutOverrides,
       githubIntegrationEnabled: settings.githubIntegrationEnabled,
@@ -35,7 +36,8 @@ extension AppFeature.State {
       canNavigateForward: repositories.canNavigateWorktreeHistoryForward,
       isInitialLoadComplete: repositories.isInitialLoadComplete,
       selectedPullRequestURL: pullRequestURL,
-      notificationIndicatorCount: notificationIndicatorCount
+      selectedPullRequestName: pullRequest?.pullRequestNameCapitalized ?? "Pull Request",
+      notificationIndicatorCount: notificationIndicatorCount,
     )
   }
 
@@ -68,6 +70,9 @@ extension AppFeature.State {
       }
       if old.selectedPullRequestURL != new.selectedPullRequestURL {
         diffs.append("selectedPullRequestURL")
+      }
+      if old.selectedPullRequestName != new.selectedPullRequestName {
+        diffs.append("selectedPullRequestName")
       }
       if old.notificationIndicatorCount != new.notificationIndicatorCount {
         diffs.append("notificationIndicatorCount")

@@ -12,9 +12,10 @@ struct SettingsCommand: ParsableCommand {
       Shortcuts.self,
       Scripts.self,
       Updates.self,
+      Providers.self,
       Github.self,
       Repo.self,
-    ]
+    ],
   )
 
   func run() throws {
@@ -32,6 +33,7 @@ extension SettingsCommand {
     case shortcuts
     case scripts
     case updates
+    case providers
     case github
   }
 
@@ -70,15 +72,20 @@ extension SettingsCommand {
     func run() throws { try dispatchSettings(.updates) }
   }
 
+  struct Providers: ParsableCommand {
+    static let configuration = CommandConfiguration(abstract: "Open Providers settings.")
+    func run() throws { try dispatchSettings(.providers) }
+  }
+
   struct Github: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Open GitHub settings.")
+    static let configuration = CommandConfiguration(abstract: "Open Providers settings.")
     func run() throws { try dispatchSettings(.github) }
   }
 
   struct Repo: ParsableCommand {
     static let configuration = CommandConfiguration(
       abstract: "Open repository-specific settings.",
-      subcommands: [Scripts.self]
+      subcommands: [Scripts.self],
     )
 
     @OptionGroup var options: RepoIDOptions

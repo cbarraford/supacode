@@ -28,7 +28,7 @@ struct CommandPaletteOverlayView: View {
               0,
               geometry.size.height * 0.3
                 - CommandPaletteQuery.fieldHeight / 2
-                - CommandPaletteCard.padding
+                - CommandPaletteCard.padding,
             )
             VStack {
               CommandPaletteCard(
@@ -49,7 +49,7 @@ struct CommandPaletteOverlayView: View {
                 },
                 activate: { id in
                   activate(id, rows: filteredItems)
-                }
+                },
               )
               .zIndex(1)
               .task {
@@ -61,7 +61,7 @@ struct CommandPaletteOverlayView: View {
             .frame(
               width: geometry.size.width,
               height: geometry.size.height,
-              alignment: .top
+              alignment: .top,
             )
             .padding(.top, topOffset)
           }
@@ -141,7 +141,7 @@ struct CommandPaletteOverlayView: View {
       items: items,
       query: store.query,
       recencyByID: store.recencyByItemID,
-      now: now
+      now: now,
     )
     filteredItems = updatedItems
     return updatedItems
@@ -178,7 +178,7 @@ private struct CommandPaletteCard: View {
       CommandPaletteList(
         rows: items,
         selectedIndex: $selectedIndex,
-        hoveredID: $hoveredID
+        hoveredID: $hoveredID,
       ) { id in
         activate(id)
       }
@@ -219,7 +219,7 @@ private struct CommandPaletteQuery: View {
   init(
     query: Binding<String>,
     isTextFieldFocused: FocusState<Bool>,
-    onEvent: ((CommandPaletteKeyboardEvent) -> Void)? = nil
+    onEvent: ((CommandPaletteKeyboardEvent) -> Void)? = nil,
   ) {
     _query = query
     self.onEvent = onEvent
@@ -300,7 +300,7 @@ private struct CommandPaletteList: View {
                 row: row,
                 shortcutIndex: index < 5 ? index : nil,
                 isSelected: isRowSelected(index: index),
-                hoveredID: $hoveredID
+                hoveredID: $hoveredID,
               ) {
                 activate(row.id)
               }
@@ -533,7 +533,7 @@ private struct CommandPaletteRowView: View {
     case .renameBranch:
       base = "Rename the local branch for this worktree"
     case .openPullRequest:
-      base = "Open pull request on GitHub"
+      base = "Open pull request"
     case .markPullRequestReady:
       base = "Mark pull request ready for review"
     case .mergePullRequest:

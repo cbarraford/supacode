@@ -56,6 +56,88 @@ struct SettingsFilePersistenceTests {
     #expect(reloaded.pinnedWorktreeIDs == ["/tmp/repo-a/wt-1"])
   }
 
+  @Test(.dependencies) func customCICommandsRoundTripThroughGlobalAndRepositorySettings() throws {
+    let storage = SettingsTestStorage()
+
+    withDependencies {
+      $0.settingsFileStorage = storage.storage
+    } operation: {
+      @Shared(.settingsFile) var settings: SettingsFile
+      $settings.withLock {
+        $0.global.customCICommands = [
+          ForgeCustomCICommand(providerID: "gitlab", command: "ci-status --branch {{BRANCH}}")
+        ]
+        $0.repositories["/tmp/repo"] = RepositorySettings(
+          setupScript: "",
+          archiveScript: "",
+          deleteScript: "",
+          runScript: "",
+          scripts: [],
+          openActionID: OpenWorktreeAction.automaticSettingsID,
+          worktreeBaseRef: nil,
+          customCICommands: [
+            ForgeCustomCICommand(providerID: "github", command: "ci-status --pr {{PULL_REQUEST_NUMBER}}")
+          ],
+        )
+      }
+    }
+
+    let reloaded: SettingsFile = withDependencies {
+      $0.settingsFileStorage = storage.storage
+    } operation: {
+      @Shared(.settingsFile) var settings: SettingsFile
+      return settings
+    }
+
+    #expect(
+      reloaded.global.customCICommands == [
+        ForgeCustomCICommand(providerID: "gitlab", command: "ci-status --branch {{BRANCH}}")
+      ])
+    #expect(
+      reloaded.repositories["/tmp/repo"]?.customCICommands == [
+        ForgeCustomCICommand(providerID: "github", command: "ci-status --pr {{PULL_REQUEST_NUMBER}}")
+      ])
+  }
+
+  @Test func malformedCustomCICommandEntriesAreDroppedLossily() throws {
+    let validGlobal = ForgeCustomCICommand(providerID: "gitlab", command: "ci-status --branch {{BRANCH}}")
+    let validRepo = ForgeCustomCICommand(providerID: "github", command: "ci-status --pr {{PULL_REQUEST_NUMBER}}")
+    let encoded = try JSONEncoder().encode(SettingsFile.default)
+    var json = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    var global = try #require(json["global"] as? [String: Any])
+    global["customCICommands"] = [
+      [
+        "providerID": validGlobal.providerID,
+        "command": validGlobal.command,
+      ],
+      [
+        "providerID": "gitlab"
+      ],
+    ]
+    json["global"] = global
+    var repo = try #require(
+      JSONSerialization.jsonObject(with: try JSONEncoder().encode(RepositorySettings.default)) as? [String: Any]
+    )
+    repo["customCICommands"] = [
+      [
+        "providerID": validRepo.providerID,
+        "command": validRepo.command,
+      ],
+      [
+        "command": "missing-provider"
+      ],
+    ]
+    json["repositories"] = [
+      "/tmp/repo": repo
+    ]
+    let data = try JSONSerialization.data(withJSONObject: json)
+
+    let decoded = try JSONDecoder().decode(SettingsFile.self, from: data)
+
+    #expect(decoded.global.customCICommands == [validGlobal])
+    #expect(decoded.repositories["/tmp/repo"]?.customCICommands == [validRepo])
+  }
+
   @Test(.dependencies) func invalidJSONResetsToDefaults() throws {
     let storage = MutableTestStorage(initialData: Data("{".utf8))
 
@@ -84,9 +166,9 @@ struct SettingsFilePersistenceTests {
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: true,
         updatesAutomaticallyDownloadUpdates: false,
-        automaticallyArchiveMergedWorktrees: true
+        automaticallyArchiveMergedWorktrees: true,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -107,9 +189,9 @@ struct SettingsFilePersistenceTests {
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: true,
         updatesAutomaticallyDownloadUpdates: false,
-        automaticallyArchiveMergedWorktrees: false
+        automaticallyArchiveMergedWorktrees: false,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -151,9 +233,9 @@ struct SettingsFilePersistenceTests {
       global: LegacyGlobalSettings(
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: false,
-        updatesAutomaticallyDownloadUpdates: true
+        updatesAutomaticallyDownloadUpdates: true,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -200,9 +282,9 @@ struct SettingsFilePersistenceTests {
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: true,
         updatesAutomaticallyDownloadUpdates: false,
-        confirmBeforeQuit: true
+        confirmBeforeQuit: true,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -224,9 +306,9 @@ struct SettingsFilePersistenceTests {
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: true,
         updatesAutomaticallyDownloadUpdates: false,
-        confirmBeforeQuit: false
+        confirmBeforeQuit: false,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -248,9 +330,9 @@ struct SettingsFilePersistenceTests {
       global: LegacyGlobalSettings(
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: false,
-        updatesAutomaticallyDownloadUpdates: true
+        updatesAutomaticallyDownloadUpdates: true,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -299,7 +381,7 @@ nonisolated private final class MutableTestStorage: @unchecked Sendable {
   var storage: SettingsFileStorage {
     SettingsFileStorage(
       load: { try self.load($0) },
-      save: { try self.save($0, $1) }
+      save: { try self.save($0, $1) },
     )
   }
 

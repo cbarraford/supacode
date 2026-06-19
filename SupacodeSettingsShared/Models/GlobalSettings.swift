@@ -57,6 +57,7 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
   /// User-configured remote repositories reachable over SSH. Materialized at
   /// load into folder-kind repositories whose terminals run on the remote host.
   public var remoteRepositories: [RemoteRepositoryConfig]
+  public var customCICommands: [ForgeCustomCICommand]
   public var richAgentNotificationsEnabled: Bool
   public var agentPresenceBadgesEnabled: Bool
   /// When true, an agent integration that reports `.outdated` at launch /
@@ -98,11 +99,12 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     shortcutOverrides: [:],
     globalScripts: [],
     remoteRepositories: [],
+    customCICommands: [],
     richAgentNotificationsEnabled: true,
     agentPresenceBadgesEnabled: true,
     autoUpdateAgentIntegrationsEnabled: true,
     confirmQuitMode: .auto,
-    terminateSessionsOnQuit: false
+    terminateSessionsOnQuit: false,
   )
 
   public init(
@@ -133,11 +135,12 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     shortcutOverrides: [AppShortcutID: AppShortcutOverride] = [:],
     globalScripts: [ScriptDefinition] = [],
     remoteRepositories: [RemoteRepositoryConfig] = [],
+    customCICommands: [ForgeCustomCICommand] = [],
     richAgentNotificationsEnabled: Bool = true,
     agentPresenceBadgesEnabled: Bool = true,
     autoUpdateAgentIntegrationsEnabled: Bool = true,
     confirmQuitMode: ConfirmQuitMode = .auto,
-    terminateSessionsOnQuit: Bool = false
+    terminateSessionsOnQuit: Bool = false,
   ) {
     self.appearanceMode = appearanceMode
     self.defaultEditorID = defaultEditorID
@@ -166,6 +169,7 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     self.shortcutOverrides = shortcutOverrides
     self.globalScripts = globalScripts
     self.remoteRepositories = remoteRepositories
+    self.customCICommands = customCICommands
     self.richAgentNotificationsEnabled = richAgentNotificationsEnabled
     self.agentPresenceBadgesEnabled = agentPresenceBadgesEnabled
     self.autoUpdateAgentIntegrationsEnabled = autoUpdateAgentIntegrationsEnabled
@@ -228,7 +232,7 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     } else {
       if let legacyBool = try legacy.decodeIfPresent(
         Bool.self,
-        forKey: LegacyCodingKey(stringValue: "automaticallyArchiveMergedWorktrees")!
+        forKey: LegacyCodingKey(stringValue: "automaticallyArchiveMergedWorktrees")!,
       ) {
         mergedWorktreeAction = legacyBool ? .archive : Self.default.mergedWorktreeAction
       } else {
@@ -261,7 +265,7 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     if let policy = try container.decodeIfPresent(AutomatedActionPolicy.self, forKey: .automatedActionPolicy) {
       automatedActionPolicy = policy
     } else if let legacyBool = try legacy.decodeIfPresent(
-      Bool.self, forKey: LegacyCodingKey(stringValue: "allowArbitraryDeeplinkInput")!)
+      Bool.self, forKey: LegacyCodingKey(stringValue: "allowArbitraryDeeplinkInput")!, )
     {
       automatedActionPolicy = legacyBool ? .always : .never
     } else {
@@ -293,6 +297,9 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     }
     // Lossy: a malformed entry is dropped, a missing key collapses to `[]`.
     remoteRepositories = container.decodeLossyArrayIfPresent(forKey: .remoteRepositories) ?? []
+    customCICommands =
+      container.decodeLossyArrayIfPresent(forKey: .customCICommands)
+      ?? Self.default.customCICommands
     richAgentNotificationsEnabled =
       try container.decodeIfPresent(Bool.self, forKey: .richAgentNotificationsEnabled)
       ?? Self.default.richAgentNotificationsEnabled
@@ -311,7 +318,7 @@ public nonisolated struct GlobalSettings: Codable, Equatable, Sendable {
     {
       confirmQuitMode = mode
     } else if let legacyConfirmBeforeQuit = try legacy.decodeIfPresent(
-      Bool.self, forKey: LegacyCodingKey(stringValue: "confirmBeforeQuit")!)
+      Bool.self, forKey: LegacyCodingKey(stringValue: "confirmBeforeQuit")!, )
     {
       confirmQuitMode = legacyConfirmBeforeQuit ? .always : .never
     } else {
