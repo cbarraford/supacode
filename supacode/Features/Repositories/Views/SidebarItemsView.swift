@@ -301,6 +301,7 @@ private struct SidebarPathGroupHeaderRow: View {
           SidebarPathGroupAggregatedIndicators(parentStore: store, leafIDs: leafDescendantIDs)
         }
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(.interaction, .rect)
     }
     .buttonStyle(.plain)
