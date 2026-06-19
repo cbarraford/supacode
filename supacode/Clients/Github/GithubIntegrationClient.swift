@@ -72,6 +72,7 @@ extension DependencyValues {
 @MainActor
 private func githubIntegrationIsAvailable() async -> Bool {
   @Shared(.settingsFile) var settingsFile
+  @Dependency(CLIForgeProviderClient.self) var cliForgeProvider
   @Dependency(GithubCLIClient.self) var githubCLI
   guard settingsFile.global.githubIntegrationEnabled else {
     await githubIntegrationAvailabilityCache.clear()
@@ -79,5 +80,6 @@ private func githubIntegrationIsAvailable() async -> Bool {
   }
   return await githubIntegrationAvailabilityCache.value {
     await githubCLI.isAvailable()
+      || cliForgeProvider.isAvailable(.gitLab)
   }
 }

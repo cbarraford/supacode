@@ -13,7 +13,7 @@ struct PullRequestChecksPopoverView: View {
 
   init(
     pullRequest: GithubPullRequest,
-    checks: [GithubPullRequestStatusCheck]
+    checks: [GithubPullRequestStatusCheck],
   ) {
     self.pullRequest = pullRequest
     self.checks = checks
@@ -65,7 +65,7 @@ struct PullRequestChecksPopoverView: View {
           }
           .buttonStyle(.plain)
           .focusable(false)
-          .help("Open pull request on GitHub (\(effectiveOpenPR?.display ?? "none"))")
+          .help("\(pullRequest.openHelpText) (\(effectiveOpenPR?.display ?? "none"))")
           .appKeyboardShortcut(effectiveOpenPR)
           .font(.headline)
         } else {
@@ -122,7 +122,7 @@ struct PullRequestChecksPopoverView: View {
                   }
                   .buttonStyle(.plain)
                   .focusable(false)
-                  .help("Open check details on GitHub")
+                  .help("Open check details")
                 } else {
                   Text(check.displayName)
                     .lineLimit(1)

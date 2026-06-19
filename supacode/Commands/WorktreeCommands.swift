@@ -78,13 +78,13 @@ private struct WorktreeMainMenu: Commands {
       .appKeyboardShortcut(revealInFinder)
       .help("Reveal in Finder (\(revealInFinder?.display ?? "none"))")
       .disabled(revealInFinderAction?.isEnabled != true)
-      Button("Open Pull Request", systemImage: "arrow.up.forward") {
+      Button("Open \(snapshot.selectedPullRequestName)", systemImage: "arrow.up.forward") {
         if let url = snapshot.selectedPullRequestURL {
           NSWorkspace.shared.open(url)
         }
       }
       .appKeyboardShortcut(openPR)
-      .help("Open Pull Request (\(openPR?.display ?? "none"))")
+      .help("Open \(snapshot.selectedPullRequestName) (\(openPR?.display ?? "none"))")
       .disabled(snapshot.selectedPullRequestURL == nil || !snapshot.githubIntegrationEnabled)
       Divider()
       Button("Refresh Worktrees", systemImage: "arrow.clockwise") {

@@ -5,7 +5,7 @@ import SwiftUI
 
 @MainActor @Observable
 final class GithubSettingsViewModel {
-  enum State: Equatable {
+  enum GithubState: Equatable {
     case loading
     case unavailable
     case outdated
@@ -14,41 +14,42 @@ final class GithubSettingsViewModel {
     case error(String)
   }
 
-  var state: State = .loading
-
-  @ObservationIgnored
-  @Dependency(GithubIntegrationClient.self) private var githubIntegration
+  var githubState: GithubState = .loading
+  var isGitLabCLIAvailable = false
 
   @ObservationIgnored
   @Dependency(GithubCLIClient.self) private var githubCLI
 
+  @ObservationIgnored
+  @Dependency(CLIForgeProviderClient.self) private var cliForgeProvider
+
   func load() async {
-    state = .loading
-    let isAvailable = await githubIntegration.isAvailable()
-    guard isAvailable else {
-      state = .unavailable
-      return
-    }
+    githubState = .loading
+    isGitLabCLIAvailable = await cliForgeProvider.isAvailable(.gitLab)
 
     do {
+      guard await githubCLI.isAvailable() else {
+        githubState = .unavailable
+        return
+      }
       if let status = try await githubCLI.authStatus() {
-        state = .authenticated(username: status.username, host: status.host)
+        githubState = .authenticated(username: status.username, host: status.host)
       } else {
-        state = .notAuthenticated
+        githubState = .notAuthenticated
       }
     } catch let error as GithubCLIError {
       switch error {
       case .outdated:
-        state = .outdated
+        githubState = .outdated
       case .unavailable:
-        state = .unavailable
+        githubState = .unavailable
       case .gatewayTimeout:
-        state = .error(error.localizedDescription ?? "GitHub returned a gateway timeout.")
+        githubState = .error(error.localizedDescription ?? "GitHub returned a gateway timeout.")
       case .commandFailed(let message):
-        state = .error(message)
+        githubState = .error(message)
       }
     } catch {
-      state = .error(error.localizedDescription)
+      githubState = .error(error.localizedDescription)
     }
   }
 }
@@ -61,12 +62,26 @@ struct GithubSettingsView: View {
     Form {
       Section {
         Toggle(isOn: $store.githubIntegrationEnabled) {
-          Text("Enable GitHub Integration")
-          Text("Pull request checks and merge actions in the command palette.")
+          Text("Enable Forge Providers")
+          Text("Pull request and merge request status in the sidebar and command palette.")
         }
       }
+      Section("Bundled Providers") {
+        providerRow(
+          name: "GitHub",
+          executable: "gh",
+          status: githubStatusText,
+          capabilities: "PR status, merge actions, Actions logs, re-run failed jobs",
+        )
+        providerRow(
+          name: "GitLab",
+          executable: "glab",
+          status: viewModel.isGitLabCLIAvailable ? "CLI found" : "CLI not found",
+          capabilities: "MR status and pipeline status",
+        )
+      }
       Section("GitHub CLI") {
-        switch viewModel.state {
+        switch viewModel.githubState {
         case .loading:
           LabeledContent("Checking GitHub CLI…") {
             ProgressView().controlSize(.small)
@@ -137,7 +152,7 @@ struct GithubSettingsView: View {
           }
         }
 
-        switch viewModel.state {
+        switch viewModel.githubState {
         case .unavailable:
           Button("Get GitHub CLI") {
             NSWorkspace.shared.open(URL(string: "https://cli.github.com")!)
@@ -182,7 +197,7 @@ struct GithubSettingsView: View {
     .padding(.top, -20)
     .padding(.leading, -8)
     .padding(.trailing, -6)
-    .navigationTitle("GitHub")
+    .navigationTitle("Providers")
     .task {
       await viewModel.load()
     }
@@ -190,6 +205,43 @@ struct GithubSettingsView: View {
       Task {
         await viewModel.load()
       }
+    }
+  }
+
+  private var githubStatusText: String {
+    switch viewModel.githubState {
+    case .loading:
+      return "Checking..."
+    case .unavailable:
+      return "CLI not found"
+    case .outdated:
+      return "CLI outdated"
+    case .notAuthenticated:
+      return "Not authenticated"
+    case .authenticated:
+      return "Authenticated"
+    case .error:
+      return "Error"
+    }
+  }
+
+  private func providerRow(
+    name: String,
+    executable: String,
+    status: String,
+    capabilities: String,
+  ) -> some View {
+    LabeledContent {
+      VStack(alignment: .trailing, spacing: 2) {
+        Text(status)
+        Text(capabilities)
+          .foregroundStyle(.secondary)
+          .font(.callout)
+          .multilineTextAlignment(.trailing)
+      }
+    } label: {
+      Text(name)
+      Text("Uses `\(executable)`")
     }
   }
 }

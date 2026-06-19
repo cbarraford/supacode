@@ -28,10 +28,10 @@ struct PullRequestChecksPopoverButton<Label: View>: View {
       {
         let overrides = settingsFile.global.shortcutOverrides
         let display = AppShortcuts.openPullRequest.effective(from: overrides)?.display ?? "none"
-        return "Open pull request on GitHub (\(display)). Hover to show checks."
+        return "\(pullRequest.openHelpText) (\(display)). Hover to show checks."
       }()
     )
-    .accessibilityLabel("Open pull request on GitHub")
+    .accessibilityLabel(pullRequest.openHelpText)
     .onHover { hovering in
       isHoveringButton = hovering
       updatePresentation()
@@ -39,7 +39,7 @@ struct PullRequestChecksPopoverButton<Label: View>: View {
     .popover(isPresented: $isPresented) {
       PullRequestChecksPopoverView(
         pullRequest: pullRequest,
-        checks: checks
+        checks: checks,
       )
       .onHover { hovering in
         isHoveringPopover = hovering

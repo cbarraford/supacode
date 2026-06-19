@@ -86,7 +86,7 @@ struct GitClient {
       operation: .repoRoot,
       executableURL: wtURL,
       arguments: ["root"],
-      currentDirectoryURL: normalizedPath
+      currentDirectoryURL: normalizedPath,
     )
     let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
     if trimmed.isEmpty {
@@ -126,10 +126,10 @@ struct GitClient {
           detail: detail,
           createdAt: createdAt,
           isMissing: isMissing,
-          isAttached: isAttached
+          isAttached: isAttached,
         ),
         createdAt: sortDate,
-        index: index
+        index: index,
       )
     }
     return
@@ -153,7 +153,7 @@ struct GitClient {
     let repositoryRootURL = repoRoot.standardizedFileURL
     let output = try await runGit(
       operation: .worktreeList,
-      arguments: ["-C", repositoryRootURL.path(percentEncoded: false), "worktree", "list", "--porcelain"]
+      arguments: ["-C", repositoryRootURL.path(percentEncoded: false), "worktree", "list", "--porcelain"],
     )
     return Self.parseWorktreePorcelain(output, repositoryRootURL: repositoryRootURL)
   }
@@ -163,7 +163,7 @@ struct GitClient {
   /// `detached`); a `bare` block for the bare root is skipped.
   nonisolated static func parseWorktreePorcelain(
     _ output: String,
-    repositoryRootURL: URL
+    repositoryRootURL: URL,
   ) -> [Worktree] {
     var worktrees: [Worktree] = []
     for block in output.components(separatedBy: "\n\n") {
@@ -196,7 +196,7 @@ struct GitClient {
           detail: relativePath(from: repositoryRootURL, to: worktreeURL),
           createdAt: nil,
           isMissing: false,
-          isAttached: isAttached
+          isAttached: isAttached,
         )
       )
     }
@@ -213,7 +213,7 @@ struct GitClient {
     in repoRoot: URL,
     name: String,
     baseRef: String,
-    worktreePath: URL
+    worktreePath: URL,
   ) async throws {
     let rootPath = repoRoot.standardizedFileURL.path(percentEncoded: false)
     let wtPath = worktreePath.standardizedFileURL.path(percentEncoded: false)
@@ -253,7 +253,7 @@ struct GitClient {
     do {
       _ = try await runGit(
         operation: .worktreePrune,
-        arguments: ["-C", repoRoot.path(percentEncoded: false), "worktree", "prune"]
+        arguments: ["-C", repoRoot.path(percentEncoded: false), "worktree", "prune"],
       )
     } catch {
       gitLogger.warning(
@@ -266,13 +266,13 @@ struct GitClient {
     let path = repoRoot.path(percentEncoded: false)
     let output = try await runGit(
       operation: .gitCommonDir,
-      arguments: ["-C", path, "rev-parse", "--git-common-dir"]
+      arguments: ["-C", path, "rev-parse", "--git-common-dir"],
     )
     let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
     if trimmed.isEmpty {
       throw GitClientError.commandFailed(
         command: "git rev-parse --git-common-dir",
-        message: "Empty output"
+        message: "Empty output",
       )
     }
     // `URL(fileURLWithPath:relativeTo:)` drops the leaf when the base
@@ -293,14 +293,14 @@ struct GitClient {
     var isDir: ObjCBool = false
     let exists = fileManager.fileExists(
       atPath: worktreesDir.path(percentEncoded: false),
-      isDirectory: &isDir
+      isDirectory: &isDir,
     )
     guard exists, isDir.boolValue else { return [] }
     let contents =
       (try? fileManager.contentsOfDirectory(
         at: worktreesDir,
         includingPropertiesForKeys: nil,
-        options: [.skipsHiddenFiles]
+        options: [.skipsHiddenFiles],
       )) ?? []
     return contents.compactMap(Self.readAdminEntry(at:))
   }
@@ -316,7 +316,7 @@ struct GitClient {
     var isDir: ObjCBool = false
     let exists = FileManager.default.fileExists(
       atPath: gitPointer.path(percentEncoded: false),
-      isDirectory: &isDir
+      isDirectory: &isDir,
     )
     guard exists, !isDir.boolValue else { return nil }
     guard let raw = try? String(contentsOf: gitPointer, encoding: .utf8) else {
@@ -358,7 +358,7 @@ struct GitClient {
       owner: supacodeLockOwner,
       version: info?["CFBundleShortVersionString"] as? String,
       build: info?["CFBundleVersion"] as? String,
-      createdAt: Int64(Date().timeIntervalSince1970)
+      createdAt: Int64(Date().timeIntervalSince1970),
     )
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
@@ -406,7 +406,7 @@ struct GitClient {
     return WorktreeAdminEntry(
       adminDirectory: adminBase,
       worktreeDirectory: worktreeDirectory,
-      lockReason: lockReason
+      lockReason: lockReason,
     )
   }
 
@@ -420,7 +420,7 @@ struct GitClient {
         "for-each-ref",
         "--format=%(refname:short)",
         "refs/heads",
-      ]
+      ],
     )
     let names =
       output
@@ -435,12 +435,12 @@ struct GitClient {
   nonisolated func renameBranch(
     from oldName: String,
     to newName: String,
-    for repoRoot: URL
+    for repoRoot: URL,
   ) async throws {
     let path = repoRoot.path(percentEncoded: false)
     _ = try await runGit(
       operation: .branchRename,
-      arguments: ["-C", path, "branch", "-m", oldName, newName]
+      arguments: ["-C", path, "branch", "-m", oldName, newName],
     )
   }
 
@@ -449,7 +449,7 @@ struct GitClient {
     do {
       _ = try await runGit(
         operation: .branchNameValidation,
-        arguments: ["-C", path, "check-ref-format", "--branch", branchName]
+        arguments: ["-C", path, "check-ref-format", "--branch", branchName],
       )
       return true
     } catch {
@@ -478,7 +478,7 @@ struct GitClient {
     let path = repoRoot.path(percentEncoded: false)
     let output = try await runGit(
       operation: .remoteList,
-      arguments: ["-C", path, "remote"]
+      arguments: ["-C", path, "remote"],
     )
     return
       output
@@ -492,7 +492,7 @@ struct GitClient {
     let path = repoRoot.path(percentEncoded: false)
     _ = try await runGit(
       operation: .fetchOrigin,
-      arguments: ["-C", path, "fetch", remote]
+      arguments: ["-C", path, "fetch", remote],
     )
   }
 
@@ -504,7 +504,7 @@ struct GitClient {
     let path = repoRoot.path(percentEncoded: false)
     let output = try await runGit(
       operation: .ignoredFileCount,
-      arguments: ["-C", path, "ls-files", "--others", "-i", "--exclude-standard"]
+      arguments: ["-C", path, "ls-files", "--others", "-i", "--exclude-standard"],
     )
     return parseFileListCount(output)
   }
@@ -513,7 +513,7 @@ struct GitClient {
     let path = repoRoot.path(percentEncoded: false)
     let output = try await runGit(
       operation: .untrackedFileCount,
-      arguments: ["-C", path, "ls-files", "--others", "--exclude-standard"]
+      arguments: ["-C", path, "ls-files", "--others", "--exclude-standard"],
     )
     return parseFileListCount(output)
   }
@@ -523,7 +523,7 @@ struct GitClient {
     in repoRoot: URL,
     baseDirectory: URL,
     copyFiles: (ignored: Bool, untracked: Bool),
-    baseRef: String
+    baseRef: String,
   ) async throws -> Worktree {
     var createdWorktree: Worktree?
     for try await event in createWorktreeStream(
@@ -531,7 +531,7 @@ struct GitClient {
       in: repoRoot,
       baseDirectory: baseDirectory,
       copyFiles: copyFiles,
-      baseRef: baseRef
+      baseRef: baseRef,
     ) {
       if case .finished(let worktree) = event {
         createdWorktree = worktree
@@ -546,7 +546,7 @@ struct GitClient {
           name: name,
           copyFiles: copyFiles,
           baseRef: baseRef,
-          directoryOverride: nil
+          directoryOverride: nil,
         )).joined(separator: " ")
       throw GitClientError.commandFailed(command: command, message: "Empty output")
     }
@@ -559,7 +559,7 @@ struct GitClient {
     baseDirectory: URL,
     copyFiles: (ignored: Bool, untracked: Bool),
     baseRef: String,
-    directoryOverride: URL? = nil
+    directoryOverride: URL? = nil,
   ) -> AsyncThrowingStream<GitWorktreeCreateEvent, Error> {
     AsyncThrowingStream { continuation in
       Task {
@@ -571,7 +571,7 @@ struct GitClient {
             name: name,
             copyFiles: copyFiles,
             baseRef: baseRef,
-            directoryOverride: directoryOverride
+            directoryOverride: directoryOverride,
           )
           let envURL = URL(fileURLWithPath: "/usr/bin/env")
           let localeArguments = ["LANG=C", "LC_ALL=C", "LC_MESSAGES=C"]
@@ -582,7 +582,7 @@ struct GitClient {
             for try await streamEvent in shell.runLoginStream(
               envURL,
               invocationArguments,
-              repoRoot
+              repoRoot,
             ) {
               switch streamEvent {
               case .line(let line):
@@ -610,7 +610,7 @@ struct GitClient {
                   location: .local(workingDirectory: worktreeURL, repositoryRoot: repositoryRootURL),
                   name: name,
                   detail: detail,
-                  createdAt: createdAt
+                  createdAt: createdAt,
                 )
                 if let adminDir = Self.adminDirectory(forWorktreeAt: worktreeURL) {
                   Self.writeSupacodeLock(at: adminDir)
@@ -642,7 +642,7 @@ struct GitClient {
     name: String,
     copyFiles: (ignored: Bool, untracked: Bool),
     baseRef: String,
-    directoryOverride: URL?
+    directoryOverride: URL?,
   ) -> [String] {
     var arguments = ["--base-dir", baseDirectory.path(percentEncoded: false), "sw"]
     if copyFiles.ignored {
@@ -676,7 +676,7 @@ struct GitClient {
     guard
       let output = try? await runGit(
         operation: .symbolicHeadRef,
-        arguments: ["-C", path, "rev-parse", "--abbrev-ref", "HEAD"]
+        arguments: ["-C", path, "rev-parse", "--abbrev-ref", "HEAD"],
       )
     else {
       return nil
@@ -693,7 +693,7 @@ struct GitClient {
     do {
       let diff = try await runGit(
         operation: .lineChanges,
-        arguments: ["-C", path, "diff", "HEAD", "--shortstat"]
+        arguments: ["-C", path, "diff", "HEAD", "--shortstat"],
       )
       let changes = parseShortstat(diff)
       return (added: changes.added, removed: changes.removed)
@@ -706,7 +706,7 @@ struct GitClient {
     let headURL = await MainActor.run {
       GitWorktreeHeadResolver.headURL(
         for: worktreeURL,
-        fileManager: .default
+        fileManager: .default,
       )
     }
     guard let headURL else {
@@ -722,7 +722,7 @@ struct GitClient {
     guard
       let remotesOutput = try? await runGit(
         operation: .remoteInfo,
-        arguments: ["-C", path, "remote"]
+        arguments: ["-C", path, "remote"],
       )
     else {
       return nil
@@ -742,12 +742,12 @@ struct GitClient {
       guard
         let remoteURL = try? await runGit(
           operation: .remoteInfo,
-          arguments: ["-C", path, "remote", "get-url", remote]
+          arguments: ["-C", path, "remote", "get-url", remote],
         )
       else {
         continue
       }
-      if let info = Self.parseGithubRemoteInfo(remoteURL) {
+      if let info = Self.parseForgeRemoteInfo(remoteURL) {
         return info
       }
     }
@@ -775,7 +775,7 @@ struct GitClient {
     // remove below is the actual guarantee.
     _ = try? await runGit(
       operation: .worktreePrune,
-      arguments: ["-C", rootPath, "worktree", "prune", "--expire=now"]
+      arguments: ["-C", rootPath, "worktree", "prune", "--expire=now"],
     )
     do {
       try await runGitWorktreeRemove(rootPath: rootPath, worktreePath: worktreePath)
@@ -794,7 +794,7 @@ struct GitClient {
       if names.contains(worktree.name.lowercased()) {
         _ = try? await runGit(
           operation: .branchDelete,
-          arguments: ["-C", rootPath, "branch", "-D", worktree.name]
+          arguments: ["-C", rootPath, "branch", "-D", worktree.name],
         )
       }
     }
@@ -843,7 +843,7 @@ struct GitClient {
 
   nonisolated private func runGit(
     operation: GitOperation,
-    arguments: [String]
+    arguments: [String],
   ) async throws -> String {
     let env = URL(fileURLWithPath: "/usr/bin/env")
     let command = ([env.path(percentEncoded: false)] + ["git"] + arguments).joined(separator: " ")
@@ -861,7 +861,7 @@ struct GitClient {
       operation: .worktreeList,
       executableURL: wtURL,
       arguments: arguments,
-      currentDirectoryURL: repoRoot
+      currentDirectoryURL: repoRoot,
     )
   }
 
@@ -876,7 +876,7 @@ struct GitClient {
     operation: GitOperation,
     executableURL: URL,
     arguments: [String],
-    currentDirectoryURL: URL?
+    currentDirectoryURL: URL?,
   ) async throws -> String {
     let command = ([executableURL.path(percentEncoded: false)] + arguments).joined(separator: " ")
     do {
@@ -898,7 +898,7 @@ struct GitClient {
     operation: GitOperation,
     executableURL: URL,
     arguments: [String],
-    currentDirectoryURL: URL?
+    currentDirectoryURL: URL?,
   ) async throws -> String {
     let command = ([executableURL.path(percentEncoded: false)] + arguments).joined(separator: " ")
     do {
@@ -939,7 +939,7 @@ struct GitClient {
 
   nonisolated private func runGitWorktreeRemove(
     rootPath: String,
-    worktreePath: String
+    worktreePath: String,
   ) async throws {
     // Double `--force` overrides both "dirty worktree" and "locked
     // worktree" so an orphan whose lock survived an unlock attempt
@@ -954,7 +954,7 @@ struct GitClient {
         "--force",
         "--force",
         worktreePath,
-      ]
+      ],
     )
   }
 
@@ -975,7 +975,7 @@ struct GitClient {
   // is unreadable; path comparison is symlink-resolved to match git's form.
   nonisolated private func releaseSupacodeLock(
     forWorktreeAt worktreeURL: URL,
-    repoRoot: URL
+    repoRoot: URL,
   ) async {
     if let adminDir = Self.adminDirectory(forWorktreeAt: worktreeURL) {
       Self.removeSupacodeLock(at: adminDir)
@@ -1015,7 +1015,7 @@ struct GitClient {
     for baseURL in candidates {
       let trashBaseURL = baseURL.appending(
         path: "supacode-worktree-trash",
-        directoryHint: URL.DirectoryHint.isDirectory
+        directoryHint: URL.DirectoryHint.isDirectory,
       )
       do {
         try fileManager.createDirectory(at: trashBaseURL, withIntermediateDirectories: true)
@@ -1024,7 +1024,7 @@ struct GitClient {
       }
       let destinationURL = trashBaseURL.appending(
         path: "\(worktreeURL.lastPathComponent)-\(UUID().uuidString)",
-        directoryHint: URL.DirectoryHint.isDirectory
+        directoryHint: URL.DirectoryHint.isDirectory,
       )
       do {
         try fileManager.moveItem(at: worktreeURL, to: destinationURL)
@@ -1037,6 +1037,13 @@ struct GitClient {
   }
 
   nonisolated static func parseGithubRemoteInfo(_ remoteURL: String) -> GithubRemoteInfo? {
+    guard let info = parseForgeRemoteInfo(remoteURL), info.providerID == .github else {
+      return nil
+    }
+    return info
+  }
+
+  nonisolated static func parseForgeRemoteInfo(_ remoteURL: String) -> ForgeRemoteInfo? {
     let trimmed = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else {
       return nil
@@ -1051,33 +1058,33 @@ struct GitClient {
       guard hostParts.count == 2 else {
         return nil
       }
-      return parseGithubRemoteInfo(host: String(hostParts[0]), path: String(hostParts[1]))
+      return parseForgeRemoteInfo(host: String(hostParts[0]), path: String(hostParts[1]))
     }
     guard let url = URL(string: trimmed), let host = url.host else {
       return nil
     }
     let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-    return parseGithubRemoteInfo(host: host, path: path)
+    return parseForgeRemoteInfo(host: host, path: path)
   }
 
-  nonisolated private static func parseGithubRemoteInfo(host: String, path: String) -> GithubRemoteInfo? {
-    let normalizedHost = host.lowercased()
-    guard normalizedHost.contains("github") else {
+  nonisolated private static func parseForgeRemoteInfo(host: String, path: String) -> ForgeRemoteInfo? {
+    guard let descriptor = ForgeProviderRegistry.bundled.descriptor(matchingHost: host) else {
       return nil
     }
     let components = path.split(separator: "/", omittingEmptySubsequences: true)
     guard components.count >= 2 else {
       return nil
     }
-    let owner = String(components[0])
-    var repo = String(components[1])
-    if repo.hasSuffix(".git") {
-      repo = String(repo.dropLast(4))
+    var normalizedComponents = components.map(String.init)
+    if let last = normalizedComponents.last, last.hasSuffix(".git") {
+      normalizedComponents[normalizedComponents.count - 1] = String(last.dropLast(4))
     }
-    guard !owner.isEmpty, !repo.isEmpty else {
+    let projectPath = normalizedComponents.joined(separator: "/")
+    let info = ForgeRemoteInfo(providerID: descriptor.id, host: host, projectPath: projectPath)
+    guard !info.owner.isEmpty, !info.repo.isEmpty else {
       return nil
     }
-    return GithubRemoteInfo(host: host, owner: owner, repo: repo)
+    return info
   }
 
 }
@@ -1098,7 +1105,7 @@ nonisolated private func shouldFallbackToLoginShell(_ error: Error) -> Bool {
 nonisolated private func wrapShellError(
   _ error: Error,
   operation: GitOperation,
-  command: String
+  command: String,
 ) -> GitClientError {
   let gitError: GitClientError
   var exitCode: Int32 = -1
@@ -1123,7 +1130,7 @@ nonisolated private func wrapShellError(
       attributes: [
         "operation": operation.rawValue,
         "exit_code": Int(exitCode),
-      ]
+      ],
     )
   #endif
   return gitError

@@ -56,6 +56,49 @@ struct SettingsFilePersistenceTests {
     #expect(reloaded.pinnedWorktreeIDs == ["/tmp/repo-a/wt-1"])
   }
 
+  @Test(.dependencies) func customCICommandsRoundTripThroughGlobalAndRepositorySettings() throws {
+    let storage = SettingsTestStorage()
+
+    withDependencies {
+      $0.settingsFileStorage = storage.storage
+    } operation: {
+      @Shared(.settingsFile) var settings: SettingsFile
+      $settings.withLock {
+        $0.global.customCICommands = [
+          ForgeCustomCICommand(providerID: "gitlab", command: "ci-status --branch {{BRANCH}}")
+        ]
+        $0.repositories["/tmp/repo"] = RepositorySettings(
+          setupScript: "",
+          archiveScript: "",
+          deleteScript: "",
+          runScript: "",
+          scripts: [],
+          openActionID: OpenWorktreeAction.automaticSettingsID,
+          worktreeBaseRef: nil,
+          customCICommands: [
+            ForgeCustomCICommand(providerID: "github", command: "ci-status --pr {{PULL_REQUEST_NUMBER}}")
+          ],
+        )
+      }
+    }
+
+    let reloaded: SettingsFile = withDependencies {
+      $0.settingsFileStorage = storage.storage
+    } operation: {
+      @Shared(.settingsFile) var settings: SettingsFile
+      return settings
+    }
+
+    #expect(
+      reloaded.global.customCICommands == [
+        ForgeCustomCICommand(providerID: "gitlab", command: "ci-status --branch {{BRANCH}}")
+      ])
+    #expect(
+      reloaded.repositories["/tmp/repo"]?.customCICommands == [
+        ForgeCustomCICommand(providerID: "github", command: "ci-status --pr {{PULL_REQUEST_NUMBER}}")
+      ])
+  }
+
   @Test(.dependencies) func invalidJSONResetsToDefaults() throws {
     let storage = MutableTestStorage(initialData: Data("{".utf8))
 
@@ -84,9 +127,9 @@ struct SettingsFilePersistenceTests {
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: true,
         updatesAutomaticallyDownloadUpdates: false,
-        automaticallyArchiveMergedWorktrees: true
+        automaticallyArchiveMergedWorktrees: true,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -107,9 +150,9 @@ struct SettingsFilePersistenceTests {
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: true,
         updatesAutomaticallyDownloadUpdates: false,
-        automaticallyArchiveMergedWorktrees: false
+        automaticallyArchiveMergedWorktrees: false,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -151,9 +194,9 @@ struct SettingsFilePersistenceTests {
       global: LegacyGlobalSettings(
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: false,
-        updatesAutomaticallyDownloadUpdates: true
+        updatesAutomaticallyDownloadUpdates: true,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -200,9 +243,9 @@ struct SettingsFilePersistenceTests {
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: true,
         updatesAutomaticallyDownloadUpdates: false,
-        confirmBeforeQuit: true
+        confirmBeforeQuit: true,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -224,9 +267,9 @@ struct SettingsFilePersistenceTests {
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: true,
         updatesAutomaticallyDownloadUpdates: false,
-        confirmBeforeQuit: false
+        confirmBeforeQuit: false,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -248,9 +291,9 @@ struct SettingsFilePersistenceTests {
       global: LegacyGlobalSettings(
         appearanceMode: .dark,
         updatesAutomaticallyCheckForUpdates: false,
-        updatesAutomaticallyDownloadUpdates: true
+        updatesAutomaticallyDownloadUpdates: true,
       ),
-      repositories: [:]
+      repositories: [:],
     )
     let data = try JSONEncoder().encode(legacy)
     let storage = MutableTestStorage(initialData: data)
@@ -299,7 +342,7 @@ nonisolated private final class MutableTestStorage: @unchecked Sendable {
   var storage: SettingsFileStorage {
     SettingsFileStorage(
       load: { try self.load($0) },
-      save: { try self.save($0, $1) }
+      save: { try self.save($0, $1) },
     )
   }
 
