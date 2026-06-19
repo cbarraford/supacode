@@ -72,8 +72,9 @@ xcodebuild test -workspace supacode.xcworkspace -scheme supacode -destination "p
 
 Result: `SidebarPathGroupHeaderInteractionTests` passed with one click on the label area. After a clean Tuist
 generation, the default Swift 6 dependency build failed before reaching app/test code in
-`swift-composable-architecture`; the same focused interaction test passed with the diagnostic
-`SWIFT_VERSION=5.0` override once that dependency graph compiled.
+`swift-composable-architecture`. The build was fixed by keeping the generated external
+`ComposableArchitecture` target on Swift 5 via `Tuist/Package.swift`, while leaving Supacode's local
+targets on Swift 6.
 
 - [x] **Step 5: Build the app**
 
@@ -83,16 +84,18 @@ Run:
 make build-app
 ```
 
-Result: `make build-app` currently fails before compiling Supacode app code, inside the generated
+Result: `make build-app` initially failed before compiling Supacode app code, inside the generated
 `swift-composable-architecture` package project:
 
 ```text
 Binding+Observation.swift:86:5: type 'WritableKeyPath<Root, Value>' does not conform to the 'Sendable' protocol
 ```
 
-The same failure occurs with `ARCHS=arm64 ONLY_ACTIVE_ARCH=YES` and with
-`SWIFT_STRICT_CONCURRENCY=minimal`, so this is tracked as an environment/dependency build blocker
-for the required default build rather than a failure introduced by the sidebar row change.
+The same failure occurred with `ARCHS=arm64 ONLY_ACTIVE_ARCH=YES` and with
+`SWIFT_STRICT_CONCURRENCY=minimal`. The root cause was the generated external
+`ComposableArchitecture` target compiling as Swift 6 under Xcode 26.5 / Swift 6.3.2; setting only
+that target's `SWIFT_VERSION` to `5.0` in `Tuist/Package.swift` allowed the required default
+`make build-app` command to complete successfully.
 
 - [x] **Step 6: Commit only the implementation changes**
 
